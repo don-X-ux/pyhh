@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dino Social & Chat - Firebase</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+  <!-- ================= 1. MÀN HÌNH ĐĂNG NHẬP / ĐĂNG KÝ ================= -->
+  <div id="auth-screen" class="auth-container">
+    <div class="auth-box">
+      <div class="auth-logo">
+        <i class="fa-solid fa-comments"></i>
+        <h2>DinoConnect</h2>
+        <p>Kết nối bạn bè & Chia sẻ khoảnh khắc</p>
+      </div>
+
+      <!-- Form Đăng Nhập -->
+      <form id="login-form" class="auth-form active" onsubmit="handleLogin(event)">
+        <div class="input-group">
+          <i class="fa-solid fa-envelope"></i>
+          <input type="email" id="login-email" placeholder="Email" required>
+        </div>
+        <div class="input-group">
+          <i class="fa-solid fa-lock"></i>
+          <input type="password" id="login-password" placeholder="Mật khẩu" required>
+        </div>
+        <button type="submit" class="btn-primary">Đăng Nhập</button>
+        <p class="auth-switch">Chưa có tài khoản? <span onclick="toggleAuth('register')">Đăng ký ngay</span></p>
+      </form>
+
+      <!-- Form Đăng Ký -->
+      <form id="register-form" class="auth-form" onsubmit="handleRegister(event)">
+        <div class="input-group">
+          <i class="fa-solid fa-user"></i>
+          <input type="text" id="reg-name" placeholder="Tên hiển thị" required>
+        </div>
+        <div class="input-group">
+          <i class="fa-solid fa-envelope"></i>
+          <input type="email" id="reg-email" placeholder="Email" required>
+        </div>
+        <div class="input-group">
+          <i class="fa-solid fa-lock"></i>
+          <input type="password" id="reg-password" placeholder="Mật khẩu (ít nhất 6 ký tự)" required>
+        </div>
+        <button type="submit" class="btn-primary">Tạo Tài Khoản</button>
+        <p class="auth-switch">Đã có tài khoản? <span onclick="toggleAuth('login')">Đăng nhập</span></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= 2. GIAO DIỆN ỨNG DỤNG CHÍNH ================= -->
+  <div id="app-screen" class="app-container hidden">
+
+    <!-- THANH HEADER & TÌM KIẾM -->
+    <header class="top-header">
+      <div class="brand" onclick="switchTab('feed')" style="cursor:pointer;">
+        <i class="fa-solid fa-comments"></i>
+        <span>DinoConnect</span>
+      </div>
+
+      <div class="search-bar">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="user-search-input" placeholder="Tìm tên hoặc nhập #Mã_UID..."
+          oninput="searchUsers(this.value)" autocomplete="off">
+        <!-- Bảng kết quả tìm kiếm thả xuống -->
+        <div id="search-results" class="search-results hidden"></div>
+      </div>
+
+      <div class="header-user" onclick="switchTab('profile')">
+        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="Avatar" id="header-avatar">
+      </div>
+    </header>
+
+    <!-- KHU VỰC NỘI DUNG CHÍNH -->
+    <main class="main-content">
+
+      <!-- TAB 1: MẠNG XÃ HỘI (BẢNG TIN) -->
+      <section id="tab-feed" class="tab-section active">
+        <div class="create-post-card">
+          <div class="cp-top">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="Avatar" id="create-post-avatar">
+            <textarea id="post-content" rows="2" placeholder="Bạn đang nghĩ gì thế?"></textarea>
+          </div>
+
+          <!-- Khu vực xem trước ảnh chuẩn bị đăng -->
+          <div id="post-image-preview-box" class="image-preview-box hidden">
+            <img id="post-image-preview" src="" alt="Preview">
+            <button type="button" class="btn-remove-img" onclick="clearPostImage()"><i
+                class="fa-solid fa-xmark"></i></button>
+          </div>
+
+          <div class="cp-bottom">
+            <label class="btn-icon">
+              <i class="fa-regular fa-image"></i> Thêm ảnh
+              <input type="file" id="post-image-file" accept="image/*" hidden onchange="previewPostImage(event)">
+            </label>
+            <button class="btn-primary btn-sm" id="btn-submit-post" onclick="createPost()">Đăng bài</button>
+          </div>
+        </div>
+
+        <!-- Danh sách bài viết từ Firebase -->
+        <div id="feed-list" class="feed-list"></div>
+      </section>
+
+      <!-- TAB 2: NHẮN TIN (CHAT) -->
+      <section id="tab-chat" class="tab-section">
+        <div class="chat-layout">
+          <!-- Danh sách hội thoại -->
+          <div class="chat-sidebar" id="chat-sidebar">
+            <h3>Tin nhắn & Bạn bè</h3>
+            <div class="chat-list" id="chat-list-container"></div>
+          </div>
+
+          <!-- Khung chat chi tiết -->
+          <div class="chat-window" id="chat-window">
+            <div class="chat-window-header">
+              <button class="btn-back-mobile" onclick="closeMobileChat()"><i
+                  class="fa-solid fa-arrow-left"></i></button>
+              <div class="avatar-status-wrap">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Default" alt="Avatar"
+                  id="chat-partner-avatar">
+                <span class="status-dot" id="chat-partner-dot"></span>
+              </div>
+              <div>
+                <h4 id="chat-partner-name">Chọn một cuộc trò chuyện</h4>
+                <small id="chat-partner-uid">#UID</small>
+              </div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+              <p style="text-align:center; color: var(--text-muted); margin-top: 40px;">Chọn một người bạn bên trái để
+                bắt đầu trò chuyện</p>
+            </div>
+
+            <form class="chat-input-area" onsubmit="sendChatMessage(event)">
+              <label class="btn-attach" title="Gửi hình ảnh">
+                <i class="fa-solid fa-image"></i>
+                <input type="file" id="chat-image-file" accept="image/*" hidden onchange="sendChatImage(event)">
+              </label>
+              <input type="text" id="chat-input" placeholder="Nhập tin nhắn..." autocomplete="off">
+              <button type="submit"><i class="fa-solid fa-paper-plane"></i></button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: HỒ SƠ CÁ NHÂN & CHỈNH SỬA -->
+      <section id="tab-profile" class="tab-section">
+        <div class="profile-card">
+          <div class="profile-cover"></div>
+          <div class="profile-avatar-wrapper">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="Avatar" id="profile-avatar-preview">
+          </div>
+
+          <div class="profile-details">
+            <h2 id="display-name">Đang tải...</h2>
+            <div class="uid-badge" onclick="copyUID()" title="Nhấn để sao chép mã">
+              <span>Mã UID: <strong id="my-uid">#------</strong></span>
+              <i class="fa-regular fa-copy"></i>
+            </div>
+            <p class="bio-text" id="display-bio">Chưa có tiểu sử.</p>
+          </div>
+
+          <form class="edit-profile-form" onsubmit="saveProfile(event)">
+            <h3><i class="fa-solid fa-user-pen"></i> Chỉnh sửa hồ sơ</h3>
+
+            <div class="form-group">
+              <label>Tên hiển thị</label>
+              <input type="text" id="edit-name" required>
+            </div>
+
+            <div class="form-group">
+              <label>Link Ảnh đại diện (Avatar URL hoặc DiceBear)</label>
+              <input type="text" id="edit-avatar" required>
+            </div>
+
+            <div class="form-group">
+              <label>Tiểu sử (Bio)</label>
+              <textarea id="edit-bio" rows="3"></textarea>
+            </div>
+
+            <div class="profile-form-actions">
+              <button type="submit" class="btn-primary">Lưu thay đổi</button>
+              <button type="button" class="btn-danger" onclick="handleLogout()">Đăng xuất</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- THANH ĐIỀU HƯỚNG DƯỚI CÙNG -->
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-target="tab-feed" onclick="switchTab('feed', this)">
+        <i class="fa-solid fa-house"></i>
+        <span>Bảng tin</span>
+      </button>
+      <button class="nav-btn" data-target="tab-chat" onclick="switchTab('chat', this)">
+        <i class="fa-solid fa-comment-dots"></i>
+        <span>Nhắn tin</span>
+      </button>
+      <button class="nav-btn" data-target="tab-profile" onclick="switchTab('profile', this)">
+        <i class="fa-solid fa-user"></i>
+        <span>Hồ sơ</span>
+      </button>
+    </nav>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+
+</html>
